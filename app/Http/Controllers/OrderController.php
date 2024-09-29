@@ -1,0 +1,337 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Order;
+use App\Models\Product;
+use App\Models\User;
+use App\Notifications\OrderProcessingDelivered;
+use App\Notifications\OrderProcessingNotification;
+use App\Notifications\OrderStatusUpdated;
+use App\Notifications\StockDepletedNotification;
+use Illuminate\Http\Request;
+use Midtrans\Snap;
+use App\Services\NotificationService;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\Storage;
+
+
+
+
+
+
+
+class OrderController extends Controller
+{
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+   public function viewPdf($id)
+{
+    // Temukan order berdasarkan ID
+    $order = Order::findOrFail($id);
+
+    // Dapatkan link PDF yang disimpan (diasumsikan disimpan sebagai path relatif di kolom 'pdf_link')
+    $pdfPath = asset('storage/' . $order->pdf_link);
+
+    // Cek apakah file tersebut ada di storage (untuk memastikan validasi sebelum mengirim ke view)
+    if (!file_exists(storage_path('app/public/' . $order->pdf_link))) {
+        abort(404, 'PDF file not found.');
+    }
+
+    // Kembalikan view dengan path PDF yang dikirim ke view
+    return view('pdf-viewer', compact('pdfPath'));
+}
+
+
+
+
+    public function index()
+    {
+        $orders = Order::where('user_id', auth()->id())
+        ->orderBy('id', 'asc') // or any other column
+        ->get();
+        
+
+        return view('orders.index', compact('orders'));
+    }
+    public function markAsDelivered($id)
+    {
+        $order = Order::findOrFail($id);
+
+        // Periksa apakah order memiliki resi pada tabel resi
+        if ($order->resi) {
+            // Kirim response untuk menampilkan alert menggunakan Swal.fire
+            return view('orders.cash-payment', compact('order'));
+        } else {
+            // Ubah status menjadi 'delivered'
+            $order->status = 'delivered';
+            $order->save();
+
+            // Kirim notifikasi ke customer jika diperlukan
+            $customer = $order->user; // Pastikan ada relasi ke model User di Order
+            $customer->notify(new OrderProcessingDelivered($order));
+
+            // Redirect kembali ke halaman kelola pesanan dengan pesan status
+            return redirect()->route('orders.manage.process')->with('status', 'Pesanan telah dikirim!');
+        }
+    }
+    public function accept($id)
+    {
+        $order = Order::with('orderItems')->findOrFail($id);
+
+        // Update the order status to 'processing'
+        $request = new Request();
+        $request->merge(['status' => 'processing']);
+        $this->updateStatus($request, $order);
+
+        // Generate PDF and save it to the storage/public/pdf directory
+        $pdf = PDF::loadView('orders.receipt', ['order' => $order]);
+        $pdfFileName = 'pdf/order_receipt_' . $order->id . '.pdf'; // Relative path for 'public' disk
+        $pdf->save(storage_path('app/public/' . $pdfFileName)); // Save PDF to storage/public/pdf/
+
+        // Store the relative PDF path in the order record
+        $order->pdf_link = $pdfFileName;
+        $order->save();
+
+        // Notify the customer
+        $customer = $order->user;
+        $customer->notify(new OrderProcessingNotification($order));
+
+        return redirect()->back()->with('success', 'Order confirmed.');
+    }
+
+
+
+
+
+
+    public function manage()
+    {
+        $orders = Order::orderBy('updated_at', 'desc')->whereIn('status', ['paid', 'cash'])->get();
+        return view('orders.manage', compact('orders'));
+    }
+    public function manageProcess()
+    {
+        $orders = Order::orderBy('updated_at', 'desc')->where('status', 'processing')->get();
+        return view('orders.processing', compact('orders'));
+    }
+    public function failed($orderId)
+    {
+        // Cari order berdasarkan ID
+        $order = Order::find($orderId);
+
+        // Cek apakah order ada
+        if (!$order) {
+            return redirect()->route('home')->with('error', 'Order tidak ditemukan.');
+        }
+
+        // Tampilkan halaman dengan informasi order dan status failed
+        return view('order.failed', [
+            'order' => $order,
+        ]);
+    }
+    public function pending($orderId)
+    {
+        // Cari order berdasarkan ID
+        $order = Order::with('orderItems')->find($orderId);
+
+        // Cek apakah order ada
+        if (!$order) {
+            return redirect()->route('home')->with('error', 'Order tidak ditemukan.');
+        }
+
+        // Pastikan status order adalah pending
+        if ($order->status !== 'pending') {
+            return redirect()->route('home')->with('error', 'Order tidak dalam status pending.');
+        }
+
+        // Tampilkan halaman dengan informasi order dan status pending
+        return view('orders.pending', [
+            'order' => $order,
+            'status' => 'pending',
+        ]);
+    }
+
+    public function create()
+    {
+        // Display the form to create a new order
+        return view('orders.create');
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'quantity' => 'required|integer|min:1',
+        ]);
+
+        $product = Product::find($request->product_id);
+        $totalAmount = $product->price * $request->quantity;
+
+        // Pastikan totalAmount adalah float dan lebih besar dari 0.01
+        $totalAmount = floatval($totalAmount);
+        if ($totalAmount < 0.01) {
+            $totalAmount = 0.01;
+        }
+
+        $order = Order::create([
+            'user_id' => auth()->id(),
+            'total_amount' => $totalAmount,
+            'status' => 'pending',
+        ]);
+
+        $this->notificationService->sendOrderNotification($request->user(), $order);
+
+        // Generate payment token
+        $snapToken = Snap::createTransaction([
+            'transaction_details' => [
+                'order_id' => $order->id,
+                'gross_amount' => $totalAmount,
+            ],
+            'customer_details' => [
+                'first_name' => auth()->user()->name,
+                'email' => auth()->user()->email,
+            ],
+        ]);
+
+        return response()->json(['token' => $snapToken->token]);
+    }
+    public function showSuccess()
+    {
+        // Assuming you fetch the latest successful order of the logged-in user
+        $order = Order::where('user_id', auth()->id())
+            ->where('status', 'paid') // Assuming 'success' is the status for successful orders
+            ->latest()
+            ->with('orderItems')
+            ->first();
+
+        // If no order is found, handle it (optional)
+        if (!$order) {
+            return redirect()->back()->with('error', 'No successful order found.');
+        }
+       
+
+        return view('orders.success', compact('order'));
+    }
+
+    public function success()
+    {
+        // Temukan order berdasarkan ID
+        $orders = Order::where('user_id', auth()->id())->get();
+        
+        // Tampilkan halaman sukses dengan data order
+        return view('orders.success', [
+            'order' => $orders,
+        ]);
+    }
+
+
+    public function show(Order $order)
+
+    {
+
+        // Eager load the 'items' relationship
+
+        $order->load('orderItems');
+        $pdfPath = asset('storage/' . $order->resi);
+
+
+        // Display the details of a specific order
+
+        return view('orders.show', compact('order', 'pdfPath'));
+    }
+
+    public function updateStatus(Request $request, Order $order)
+    {
+        // Validate and update the order status
+        $order->status = $request->input('status');
+        $order->save();
+
+        // Ensure the order has a valid customer
+        if ($order->customer) {
+            // Send notification
+            Notification::send($order->customer, new OrderStatusUpdated($order));
+        } else {
+            // Handle the case where the customer is not found
+            // Log an error or notify an admin, depending on your use case
+            Log::error('Customer not found for order ID ' . $order->id);
+        }
+
+        return redirect()->route('orders.manage')->with('status', 'Order status updated!');
+    }
+    public function confirmOrder($id)
+    {
+        // Fetch the order by ID
+        $order = Order::findOrFail($id);
+
+        // Update the order status to 'completed'
+        $order->status = 'completed';
+        $order->save();
+
+        // Fetch the user
+        $user = $order->user; // Assuming you have a relation to get the user
+
+        // Delete the notification for this order
+        $user->notifications()->where('data->order_id', $order->id)->delete(); // Adjust based on how you store order ID in notification data
+
+        // Redirect with success message
+        return redirect()->route('notifications.index')->with('success', 'Pesanan telah dikonfirmasi dan status telah diubah menjadi completed.');
+    }
+
+    public function calculator(Request $request, $id)
+    {
+        $order = Order::findOrFail($id);
+        $nominal = $request->input('nominal');
+        $total_amount = $request->input('tagihan');
+        $kembalian = $nominal - $total_amount;
+
+        if ($nominal >= $total_amount) {
+            // Loop melalui setiap item dalam order untuk mengurangi stok produk
+            foreach ($order->orderItems as $orderItem) {
+                // Ambil produk terkait dari setiap item
+                $product = Product::findOrFail($orderItem->product_id);
+
+                // Kurangi stok berdasarkan jumlah yang dipesan
+                if ($product->stock >= $orderItem->quantity) {
+                    // Check if stock will go to zero
+                    $product->stock -= $orderItem->quantity;
+                    $product->save(); // Simpan perubahan stok
+                    if ($product->stock <= 0) {
+                        // Notify user with role_id 3 about the stock depletion
+                        $adminStock = User::where('role_id', 3)->first(); // Fetch admin with role_id 3
+                        $adminStock->notify(new StockDepletedNotification($product)); // Send stock depleted notification
+                    }
+                } else {
+                    // Jika stok produk tidak mencukupi
+                    session()->flash('error', "Stok tidak mencukupi untuk produk {$product->name}.");
+                    return redirect()->route('orders.payment', $id);
+                }
+            }
+
+            // Ubah status order menjadi 'delivered'
+            $order->status = 'delivered';
+            $order->save();
+
+            // Flash pesan sukses
+            session()->flash('success', 'Berhasil melakukan pembayaran dan stok produk telah dikurangi.');
+            return view('orders.cash-payment', compact('order', 'kembalian'));
+        } else {
+            // Flash pesan error jika nominal kurang dari total tagihan
+            session()->flash('error', 'Nominal uang tidak cukup!');
+            return redirect()->route('orders.payment', $id);
+        }
+    }
+
+
+
+
+
+}
+
