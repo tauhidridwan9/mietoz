@@ -1,6 +1,19 @@
 @extends('layouts.customer.app')
 
 @section('content')
+ @if (session('success'))
+    @section('scripts')
+    <script>
+        Swal.fire({
+            title: 'Berhasil',
+            text: 'Edit data berhasil',
+            icon: 'success',
+            showCancelButton: false,
+            confirmButtonText: 'OK'
+        });
+    </script>
+    @endsection
+    @endif
 <div class="container">
     <h1>Edit Profile</h1>
 
@@ -36,8 +49,8 @@
         <div class="form-group">
             <label for="profile_picture">Profile Picture</label>
             <input type="file" class="form-control" id="profile_picture" name="profile_pictures">
-            @if($user->profile_picture)
-            <img src="{{ asset('storage/' . $user->profile_picture) }}" alt="Profile Picture" width="100">
+            @if($user->profile_pictures)
+            <img src="{{ asset('storage/' . $user->profile_pictures) }}" alt="Profile Picture" width="100">
             @endif
         </div>
 

@@ -10,13 +10,30 @@ class NotificationController extends Controller
 {
     public function index()
     {
-        // Fetch notifications for the authenticated user
-        $notifications = Auth::user()->notifications()->orderBy('created_at', 'desc')->get();
+        // Ambil data user yang sedang login
+        $user = Auth::user();
 
-        return view('notifications.owner-notif', [
-            'notifications' => $notifications
-        ]);
+        // Cek role_id user
+        if ($user->role_id == 3) {
+            // Jika role_id adalah 3, arahkan ke owner-notif
+            $notifications = $user->notifications()->orderBy('created_at', 'desc')->get();
+
+            return view('notifications.owner-notif', [
+                'notifications' => $notifications
+            ]);
+        } elseif ($user->role_id == 1) {
+            // Jika role_id adalah 1, arahkan ke index
+            $notifications = $user->notifications()->orderBy('created_at', 'desc')->get();
+
+            return view('notifications.index', [
+                'notifications' => $notifications
+            ]);
+        }
+
+        // Jika role_id tidak sesuai, Anda bisa menambahkan aksi default atau redirect
+        return redirect()->back()->with('error', 'Role not authorized');
     }
+
     public function clearAll()
     {
         // Hapus semua notifikasi untuk pengguna yang sedang login
