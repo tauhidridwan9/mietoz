@@ -23,10 +23,10 @@
             <input name="nominal" id="nominal" class="form-control" rows="4" required></input>
         </div>
         @if (session('success'))
-          {{-- <div class="form-group mb-3">
+          <div class="form-group mb-3">
             <label for="kembalian">Kembalian</label>
             <input name="kembalian" id="kembalian" class="form-control" rows="4" value="{{ $kembalian }}" readonly>
-        </div> --}}
+        </div>
          @endif
 
 

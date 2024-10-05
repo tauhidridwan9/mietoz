@@ -111,17 +111,43 @@ class OrderController extends Controller
 
 
 
-
-    public function manage()
+    public function manage(Request $request)
     {
-        $orders = Order::orderBy('updated_at', 'desc')->whereIn('status', ['paid', 'cash'])->get();
+        $search = $request->input('search');
+
+        // Query untuk mendapatkan pesanan dengan status 'paid' atau 'cash'
+        $orders = Order::with('user', 'orderItems')
+        ->whereIn('status', ['paid', 'cash']) // Filter berdasarkan status
+        ->when($search, function ($query, $search) {
+            // Pencarian berdasarkan nama user atau ID pesanan
+            return $query->whereHas('user', function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%');
+            })->orWhere('id', $search)->orWhere('status', ['paid','cash']); // Pencarian berdasarkan ID
+        })
+            ->orderBy('updated_at', 'desc') // Urutkan berdasarkan waktu terakhir diupdate
+            ->get();
+
         return view('orders.manage', compact('orders'));
     }
-    public function manageProcess()
+
+    public function manageProcess(Request $request)
     {
-        $orders = Order::orderBy('updated_at', 'desc')->where('status', 'processing')->get();
+        $search = $request->input('search');
+
+        $orders = Order::with('user', 'orderItems')
+        ->whereIn('status', ['processing']) // Filter berdasarkan status 'processing'
+        ->when($search, function ($query, $search) {
+            // Pencarian berdasarkan nama user atau ID pesanan
+            return $query->whereHas('user', function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%'); // Pencarian nama user
+            })->orWhere('id', $search); // Pencarian berdasarkan ID pesanan
+        })
+            ->orderBy('updated_at', 'desc') // Urutkan berdasarkan waktu update terakhir
+            ->get();
+
         return view('orders.processing', compact('orders'));
     }
+
     public function failed($orderId)
     {
         // Cari order berdasarkan ID
