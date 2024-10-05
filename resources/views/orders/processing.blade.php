@@ -58,7 +58,7 @@
             @if($order->status == 'processing')
             <form action="{{ route('orders.delivered', $order->id) }}" method="POST" class="mt-3">
                 @csrf
-                <button type="submit" class="btn btn-success">Kirim Pesanan</button>
+                <button type="submit" class="btn btn-success">Selesaikan</button>
             </form>
             @endif
 

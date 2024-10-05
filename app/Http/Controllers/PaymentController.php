@@ -172,14 +172,17 @@ class PaymentController extends Controller
 
         $serverKey = env('MIDTRANS_SERVER_KEY');
 
-        $hash_string = $data['order_id'] . $data['status_code'] . $data['gross_amount'] . $serverKey;
+        $gross_amount = $data['gross_amount'];
+        $gross_amount = str_replace(".00", "", $gross_amount);
+
+        $hash_string = $data['order_id'] . $data['status_code'] . $gross_amount . $serverKey;
 
         $hashedKey = hash('sha512', $hash_string);
 
 
         if ($hashedKey !== $data['signature_key']) {
 
-            return response()->json(['message' => 'Invalid signature key', 'data' => $data['signature_key']], 403);
+            return response()->json(['message' => 'Invalid signature key', 'data' => $data['signature_key'], 'signature_key' => $hashedKey, $serverKey, $data['gross_amount'],$data['status_code'], $hash_string], 403);
         }
 
 

@@ -48,8 +48,8 @@ class OrderProcessingDelivered extends Notification
     public function toArray($notifiable)
     {
         return [
-            'message' => 'Pesanan Anda dengan ID #' . $this->order->id . ' sedang dikirimkan.',
-            'order_status' => 'delivered',
+            'message' => 'Pesanan Anda dengan ID #' . $this->order->id . ' telah selesai. \n Silahkan ambil pesanan anda di gerai Mietoz.',
+            'order_status' => 'selesai',
             'order_id' => $this->order->id, // Include order ID for deletion
             'confirmation_url' => route('orders.confirm', $this->order->id)
         ];

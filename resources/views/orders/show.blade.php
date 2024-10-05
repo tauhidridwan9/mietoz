@@ -37,10 +37,10 @@
         </tbody>
     </table>
     @else
-    
+     <embed src="{{ $pdfPath}}" type="application/pdf" width="100%" height="500px" />
     @endif
 
-   <embed src="{{ $pdfPath}}" type="application/pdf" width="100%" height="500px" />
+  
 
     <a href="{{ route('orders.index') }}" class="btn btn-primary">Kembali ke Daftar Pesanan</a>
 </div>
