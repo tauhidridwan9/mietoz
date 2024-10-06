@@ -1,7 +1,23 @@
 @extends('layouts.customer.app')
 
 @section('content')
+
+    @if (session('success'))
+    @section('scripts')
+    <script>
+        Swal.fire({
+            title: 'Berhasil Menambahkan',
+            text: '{{ session('success') }}',
+            icon: 'success',
+            showCancelButton: false,
+            confirmButtonText: 'OK'
+        });
+    </script>
+    @endsection
+    @endif
+
 <div class="container">
+
     <h1>Pembayaran Cash</h1>
 
     <p>Tunjukan struk pembayaran ke kasir.</p>

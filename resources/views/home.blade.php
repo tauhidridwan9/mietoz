@@ -15,6 +15,20 @@
     </script>
     @endsection
     @endif
+
+     @if (session('addtocart'))
+    @section('scripts')
+    <script>
+        Swal.fire({
+            title: 'Berhasil Menambahkan',
+            text: '{{ session('addtocart') }}',
+            icon: 'success',
+            showCancelButton: false,
+            confirmButtonText: 'OK'
+        });
+    </script>
+    @endsection
+    @endif
     <!-- Banner Section -->
     @php
     $banners = App\Models\Banner::latest()->take(5)->get();

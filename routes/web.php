@@ -65,6 +65,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.updateStatus');
     Route::get('/orders/manage', [OrderController::class, 'manage'])->name('orders.manage');
     Route::get('/orders/manage/process', [OrderController::class, 'manageProcess'])->name('orders.manage.process');
+    Route::get('/orders/manage/cooking', [OrderController::class, 'manageCooking'])->name('orders.manage.cooking');
     Route::patch('/admin/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('admin.notifications.read');
     Route::delete('/admin/notifications/{id}', [NotificationController::class, 'destroy'])->name('admin.notifications.destroy');
     Route::delete('/admin/notifications', [NotificationController::class, 'clearAll'])->name('admin.notifications.clearAll');

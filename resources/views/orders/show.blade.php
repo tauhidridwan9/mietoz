@@ -37,10 +37,16 @@
         </tbody>
     </table>
     @else
-     <embed src="{{ $pdfPath}}" type="application/pdf" width="100%" height="500px" />
+     
     @endif
-
   
+    <embed src="{{ !empty($order->pdf_link) ? $pdf_link : ( !empty($order->resi) ? $pdfPath : '' ) }}" type="application/pdf" width="100%" height="500px" />
+
+@if (empty($pdf_link) && empty($pdfPath))
+    <p>Tidak ada dokumen PDF yang tersedia.</p>
+@endif
+
+
 
     <a href="{{ route('orders.index') }}" class="btn btn-primary">Kembali ke Daftar Pesanan</a>
 </div>

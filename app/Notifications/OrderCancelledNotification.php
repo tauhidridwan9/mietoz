@@ -2,22 +2,30 @@
 
 namespace App\Notifications;
 
-use App\Models\Order;
-
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class OrderProcessingDelivered extends Notification
+class OrderCancelledNotification extends Notification
 {
     use Queueable;
+     protected $order;
+    protected $productName;
+    protected $quantity;
+    protected $totalAmount;
 
-    protected $order;
-
-    public function __construct(Order $order)
+    /**
+     * Create a new notification instance.
+     *
+     * @return void
+     */
+    public function __construct($order, $productName, $quantity, $totalAmount)
     {
         $this->order = $order;
+        $this->productName = $productName;
+        $this->quantity = $quantity;
+        $this->totalAmount = $totalAmount;
     }
 
     /**
@@ -37,7 +45,7 @@ class OrderProcessingDelivered extends Notification
      * @param  mixed  $notifiable
      * @return \Illuminate\Notifications\Messages\MailMessage
      */
-    
+   
 
     /**
      * Get the array representation of the notification.
@@ -48,12 +56,11 @@ class OrderProcessingDelivered extends Notification
     public function toArray($notifiable)
     {
         return [
-            'message' => 'Pesanan Anda dengan ID #' . $this->order->id . ' telah selesai. Silahkan ambil pesanan anda di gerai Mietoz.',
-            'order_status' => 'selesai',
-            'order_id' => $this->order->id, // Include order ID for deletion
-            'confirmation_url' => route('orders.confirm', $this->order->id)
+            'order_id' => $this->order->id,
+            'product_name' => $this->productName,
+            'quantity' => $this->quantity,
+            'total_amount' => $this->totalAmount,
+            'message' => 'Your order has been cancelled due to insufficient stock.'
         ];
     }
-
-
 }

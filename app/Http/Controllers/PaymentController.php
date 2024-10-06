@@ -73,7 +73,7 @@ class PaymentController extends Controller
         ]);
 
         // Temukan order berdasarkan ID
-        $order = Order::findOrFail($request->input('order_id'));
+        $order = Order::with('orderItems')->findOrFail($request->input('order_id'));
 
         // Konversi total_amount ke float
         $grossAmount = (float) $order->total_amount;
@@ -83,6 +83,21 @@ class PaymentController extends Controller
             'order_id' => $order->id,
             'gross_amount' => $grossAmount,
         ]);
+
+        // Persiapkan item_details
+        $itemDetails = [];
+
+        foreach ($order->orderItems as $item) {
+            $itemDetails[] = [
+                'id' => $item->id, // Atau gunakan $item->product_id jika ID produk yang diinginkan
+                'price' => $item->price,
+                'quantity' => $item->quantity,
+                'name' => $item->product_name, // Misalkan ada kolom ini di OrderItem 
+                'category' => $item->product->category ?? '', // Ambil kategori dari relasi Product
+                'merchant_name' => 'Mietoz', // Sesuaikan dengan nama merchant Anda
+                'url' => 'https://mietoz.my.id' // Ganti dengan URL produk yang sesuai
+            ];
+        }
 
         // Setup Midtrans Snap
         try {
@@ -95,20 +110,30 @@ class PaymentController extends Controller
                     'first_name' => auth()->user()->name,
                     'email' => auth()->user()->email,
                 ],
+                'item_details' => $itemDetails // Gunakan array itemDetails yang sudah dibuat
             ]);
 
-          
+            
+
             return response()->json(['snapToken' => $snapToken->token]);
         } catch (\Exception $e) {
             // Tampilkan error untuk debugging
             dd($e->getMessage());
         }
     }
+
     public function finish(Request $request)
     {
         $orderId = $request->input('order_id');
         $order = Order::findOrFail($orderId);
 
+        // Ambil transaction_id dari request
+        // Sesuaikan dengan nama parameter yang dikirim oleh Midtrans
+
+        // Simpan transaction_id ke dalam kolom orders
+       
+
+    
         $order->status = 'paid';
         $order->save();
 
@@ -128,16 +153,16 @@ class PaymentController extends Controller
 
                 if ($product) {
                     // Buat item order berdasarkan item keranjang
-                    // OrderItem::create([
-                    //     'order_id' => $order->id,
-                    //     'product_id' => $product->id,
-                    //     'product_name' => $product->name, // Atau gunakan $cartItem['name'] jika ada dalam item
-                    //     'quantity' => $cartItem->quantity,
-                    //     'price' => $cartItem->price
-                    // ]);
+                    OrderItem::create([
+                        'order_id' => $order->id,
+                        'product_id' => $product->id,
+                        'product_name' => $product->name,
+                        'quantity' => $cartItem->quantity,
+                        'price' => $cartItem->price
+                    ]);
 
                     // Kurangi stok produk sesuai dengan jumlah yang diorder
-                    $product->decrement('stock', $cartItem->quantity);
+                    // $product->decrement('stock', $cartItem->quantity);
 
                     // Jika stok habis, beri notifikasi kepada admin
                     if ($product->stock <= 0) {
@@ -161,104 +186,79 @@ class PaymentController extends Controller
     }
 
     public function handleCallback(Request $request)
-
     {
-
         $data = $request->all();
 
-
-
         // Verifikasi signature key
-
         $serverKey = env('MIDTRANS_SERVER_KEY');
-
         $gross_amount = $data['gross_amount'];
         $gross_amount = str_replace(".00", "", $gross_amount);
 
         $hash_string = $data['order_id'] . $data['status_code'] . $gross_amount . $serverKey;
-
         $hashedKey = hash('sha512', $hash_string);
 
-
         if ($hashedKey !== $data['signature_key']) {
-
-            return response()->json(['message' => 'Invalid signature key', 'data' => $data['signature_key'], 'signature_key' => $hashedKey, $serverKey, $data['gross_amount'],$data['status_code'], $hash_string], 403);
+            return response()->json(['message' => 'Invalid signature key', 'data' => $data['signature_key'], 'signature_key' => $hashedKey, 'server_key' => $serverKey, 'gross_amount' => $data['gross_amount'], 'status_code' => $data['status_code'], 'hash_string' => $hash_string], 403);
         }
 
-
         // Dapatkan status transaksi dan order ID
-
         $transactionStatus = $data['transaction_status'];
-
         $orderId = $data['order_id'];
+        $transactionId = $data['transaction_id'] ?? null; // Dapatkan transaction_id dari respons
 
         $order = Order::where('id', $orderId)->first();
 
-
         if (!$order) {
-
             return response()->json(['message' => 'Order not found'], 404);
         }
 
+        // Simpan transaction_id ke dalam kolom transaction_id di tabel orders
+        if ($transactionId) {
+            $order->transaction_id = $transactionId;
+        }
 
         // Update status pesanan berdasarkan status transaksi
-
         switch ($transactionStatus) {
-
             case 'capture':
-
                 if ($data['payment_type'] == 'credit_card') {
-
                     if ($data['fraud_status'] == 'challenge') {
-
-                        $order->update(['status' => 'pending']);
+                        $order->status = 'pending';
                     } else {
-
-                        $order->update(['status' => 'paid']);
+                        $order->status = 'paid';
                     }
                 }
-
                 break;
 
             case 'settlement':
-
-                $order->update(['status' => 'paid']);
-
+                $order->status = 'paid';
                 break;
 
             case 'pending':
-
-                $order->update(['status' => 'pending']);
-
+                $order->status = 'pending';
                 break;
 
             case 'deny':
-
-                $order->update(['status' => 'failed']);
-
+                $order->status = 'failed';
                 break;
 
             case 'expire':
-
-                $order->update(['status' => 'expired']);
-
+                $order->status = 'expired';
                 break;
 
             case 'cancel':
-
-                $order->update(['status' => 'canceled']);
-
+                $order->status = 'canceled';
                 break;
 
             default:
-
-                $order->update(['status' => 'unknown']);
-
+                $order->status = 'unknown';
                 break;
         }
 
+        // Simpan perubahan ke database
+        $order->save();
 
         return response()->json(['status' => 'success']);
     }
+
 
 }

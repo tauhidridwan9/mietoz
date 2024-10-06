@@ -84,7 +84,7 @@ class CartController extends Controller
             $cartItem->increment('quantity', $request->input('quantity', 1));
         }
 
-        return redirect()->route('home')->with('success', 'Produk berhasil ditambahkan ke keranjang!');
+        return redirect()->route('home')->with('addtocart', 'Produk berhasil ditambahkan ke keranjang!');
     }
 
 

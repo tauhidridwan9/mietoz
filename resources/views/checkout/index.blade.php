@@ -45,8 +45,7 @@
         src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ env('MIDTRANS_CLIENT_KEY') }}"></script>
     <script>
         document.getElementById('pay-button').addEventListener('click', function() {
-            fetch('{{ route('payment.pay') }}', {
-                        method: 'POST',
+            fetch('{{ route('payment.pay') }}', {method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'

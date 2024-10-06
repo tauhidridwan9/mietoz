@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\OrderCancelledNotification;
+use App\Mail\OrderCompletedNotification;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use App\Notifications\OrderCancelledNotification as NotificationsOrderCancelledNotification;
 use App\Notifications\OrderProcessingDelivered;
 use App\Notifications\OrderProcessingNotification;
 use App\Notifications\OrderStatusUpdated;
@@ -15,14 +18,10 @@ use App\Services\NotificationService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
-
-
-
-
-
-
+use Midtrans\Transaction;
 
 class OrderController extends Controller
 {
@@ -61,6 +60,8 @@ class OrderController extends Controller
 
         return view('orders.index', compact('orders'));
     }
+
+
     public function markAsDelivered($id)
     {
         $order = Order::findOrFail($id);
@@ -74,38 +75,123 @@ class OrderController extends Controller
             $order->status = 'delivered';
             $order->save();
 
-            // Kirim notifikasi ke customer jika diperlukan
+            // Ambil items dari order jika ada relasi ke order_items
+            $orderItems = $order->orderItems; // Pastikan ada relasi yang benar antara Order dan Item
+
+            // Kirim notifikasi ke customer
             $customer = $order->user; // Pastikan ada relasi ke model User di Order
             $customer->notify(new OrderProcessingDelivered($order));
 
+            // Kirim email ke customer, sertakan $orderItems
+            Mail::to($customer->email)->send(new OrderCompletedNotification($orderItems));
+
             // Redirect kembali ke halaman kelola pesanan dengan pesan status
-            return redirect()->route('orders.manage.process')->with('status', 'Pesanan telah dikirim!');
+            return redirect()->route('orders.manage.cooking')->with('status', 'Pesanan telah dikirim dan email pemberitahuan dikirim ke customer!');
         }
     }
+
+
     public function accept($id)
     {
-        $order = Order::with('orderItems')->findOrFail($id);
+        // Temukan order dengan orderItems terkait
+        $order = Order::with('orderItems.product')->findOrFail($id);
 
-        // Update the order status to 'processing'
+        // Cek stok produk sebelum mengubah status menjadi 'processing'
+        foreach ($order->orderItems as $item) {
+            $product = $item->product;
+
+            if ($product->stock <= 0) {
+                // Jika stok produk kurang atau sama dengan 0, kirim notifikasi dan ubah status order
+                $customer = $order->user;
+
+                // Kirim email pemberitahuan
+                Mail::to($customer->email)->send(new OrderCancelledNotification($order, $item));
+
+                // Buat notifikasi untuk database
+                $customer->notify(new NotificationsOrderCancelledNotification(
+                    $order,
+                    $product->name,
+                    $item->quantity,
+                    $order->total_amount
+                ));
+
+                // Ubah status order menjadi 'rejected'
+                $order->status = 'rejected';
+                $order->save();
+
+                // Refund order
+                $this->refund($order->id, $order->total_amount);
+
+                // Redirect kembali dengan pesan error
+                return redirect()->back()->with('error', 'Order ' . $order->id . ' for product ' . $product->name . ' has been cancelled due to insufficient stock.');
+            }
+        }
+
+        // Jika semua stok mencukupi, lanjutkan mengubah status menjadi 'processing'
         $request = new Request();
         $request->merge(['status' => 'processing']);
         $this->updateStatus($request, $order);
 
-        // Generate PDF and save it to the storage/public/pdf directory
+        // Generate PDF dan simpan ke direktori storage/public/pdf
         $pdf = PDF::loadView('orders.receipt', ['order' => $order]);
-        $pdfFileName = 'pdf/order_receipt_' . $order->id . '.pdf'; // Relative path for 'public' disk
-        $pdf->save(storage_path('app/public/' . $pdfFileName)); // Save PDF to storage/public/pdf/
+        $pdfFileName = 'pdf/order_receipt_' . $order->id . '.pdf'; // Relative path untuk disk 'public'
+        $pdf->save(storage_path('app/public/' . $pdfFileName)); // Simpan PDF ke storage/public/pdf/
 
-        // Store the relative PDF path in the order record
+        // Simpan path relatif PDF di record order
         $order->pdf_link = $pdfFileName;
         $order->save();
 
-        // Notify the customer
+        // Kirim notifikasi ke customer
         $customer = $order->user;
         $customer->notify(new OrderProcessingNotification($order));
 
+        // Dekrementasi stok produk untuk setiap item yang ada di order
+        foreach ($order->orderItems as $item) {
+            $item->product->decrement('stock', $item->quantity);
+        }
+
         return redirect()->back()->with('success', 'Order confirmed.');
     }
+
+
+    private function refund($id, $amount)
+    {
+        // Set Midtrans config
+        \Midtrans\Config::$clientKey = env('MIDTRANS_CLIENT_KEY');
+        \Midtrans\Config::$serverKey = env('MIDTRANS_SERVER_KEY');
+        \Midtrans\Config::$isProduction = env('MIDTRANS_IS_PRODUCTION', false);
+        \Midtrans\Config::$isSanitized = true;
+        \Midtrans\Config::$is3ds = true;
+
+        // Melakukan refund
+        try {
+            $params = [
+                'refund_key' => uniqid(), // Kunci unik untuk refund
+                'amount' => $amount,
+                'reason' => 'Stock out'
+            ];
+
+            // Transaction::refund membutuhkan 2 argumen: transaction_id dan params
+            $response = Transaction::refund($id, $params);
+
+            // Memeriksa respon dari refund jika berupa array
+            if (isset($response['status_code']) && $response['status_code'] === '200') {
+                return $response; // Refund berhasil
+            } else {
+                Log::error('Refund failed: ' . json_encode($response));
+                // Handle error jika refund gagal
+                return null; // Kembalikan null atau respons sesuai kebutuhan
+            }
+        } catch (\Exception $e) {
+            Log::error('Midtrans Refund Error: ' . $e->getMessage());
+            // Handle error jika refund gagal
+            return null; // Kembalikan null atau respons sesuai kebutuhan
+        }
+    }
+
+
+
+
 
 
 
@@ -117,20 +203,38 @@ class OrderController extends Controller
 
         // Query untuk mendapatkan pesanan dengan status 'paid' atau 'cash'
         $orders = Order::with('user', 'orderItems')
-        ->whereIn('status', ['paid', 'cash']) // Filter berdasarkan status
+        ->whereIn('status', ['paid']) // Filter berdasarkan status
         ->when($search, function ($query, $search) {
             // Pencarian berdasarkan nama user atau ID pesanan
             return $query->whereHas('user', function ($q) use ($search) {
                 $q->where('name', 'like', '%' . $search . '%');
             })->orWhere('id', $search)->orWhere('status', ['paid','cash']); // Pencarian berdasarkan ID
         })
-            ->orderBy('updated_at', 'desc') // Urutkan berdasarkan waktu terakhir diupdate
+            ->orderBy('updated_at', 'asc') // Urutkan berdasarkan waktu terakhir diupdate
             ->get();
 
         return view('orders.manage', compact('orders'));
     }
 
     public function manageProcess(Request $request)
+    {
+        $search = $request->input('search');
+
+        $orders = Order::with('user', 'orderItems')
+        ->whereIn('status', ['cash']) // Filter berdasarkan status 'processing'
+        ->when($search, function ($query, $search) {
+            // Pencarian berdasarkan nama user atau ID pesanan
+            return $query->whereHas('user', function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%'); // Pencarian nama user
+            })->orWhere('id', $search); // Pencarian berdasarkan ID pesanan
+        })
+            ->orderBy('updated_at', 'asc') // Urutkan berdasarkan waktu update terakhir
+            ->get();
+
+        return view('orders.processing', compact('orders'));
+    }
+
+    public function manageCooking(Request $request)
     {
         $search = $request->input('search');
 
@@ -142,10 +246,10 @@ class OrderController extends Controller
                 $q->where('name', 'like', '%' . $search . '%'); // Pencarian nama user
             })->orWhere('id', $search); // Pencarian berdasarkan ID pesanan
         })
-            ->orderBy('updated_at', 'desc') // Urutkan berdasarkan waktu update terakhir
+            ->orderBy('updated_at', 'asc') // Urutkan berdasarkan waktu update terakhir
             ->get();
 
-        return view('orders.processing', compact('orders'));
+        return view('orders.cooking', compact('orders'));
     }
 
     public function failed($orderId)
@@ -267,11 +371,12 @@ class OrderController extends Controller
 
         $order->load('orderItems');
         $pdfPath = asset('storage/' . $order->resi);
+        $pdf_link = asset('storage/' . $order->pdf_link);
 
 
         // Display the details of a specific order
 
-        return view('orders.show', compact('order', 'pdfPath'));
+        return view('orders.show', compact('order', 'pdfPath', 'pdf_link'));
     }
 
     public function updateStatus(Request $request, Order $order)

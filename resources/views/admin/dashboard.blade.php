@@ -68,7 +68,7 @@
         <div class="col-md-4 mb-3">
             <div class="card shadow">
                 <div class="card-header bg-info text-white">
-                    <h5 class="card-title">Jumlah Pesanan</h5>
+                    <h5 class="card-title">Pesanan Online</h5>
                 </div>
                 <div class="card-body text-center">
                     <p class="card- fs-2">{{ $orderCount }} pesanan</p>
@@ -80,12 +80,25 @@
         <div class="col-md-4 mb-3">
             <div class="card shadow">
                 <div class="card-header bg-info text-white">
-                    <h5 class="card-title">Pesanan Diproses</h5>
+                    <h5 class="card-title">Pesanan Offline</h5>
                 </div>
                 <div class="card-body text-center">
-                    <p class="card- fs-2">{{ $countProcessing }} pesanan sedang diproses</p>
+                    <p class="card- fs-2">{{ $countProcessing }} pesanan</p>
                     <i class="fas fa-shopping-cart fa-2x"></i>
                     <a href="{{ route('orders.manage.process') }}" class="btn btn-primary mt-2">Kelola Pesanan</a>
+                </div>
+            </div>
+        </div>
+
+         <div class="col-md-4 mb-3">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title">Sedang dimasak</h5>
+                </div>
+                <div class="card-body text-center">
+                    <p class="card- fs-2">{{ $countCooking }} pesanan sedang dimasak</p>
+                    <i class="fas fa-shopping-cart fa-2x"></i>
+                    <a href="{{ route('orders.manage.cooking') }}" class="btn btn-primary mt-2">Kelola Pesanan</a>
                 </div>
             </div>
         </div>

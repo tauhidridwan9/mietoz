@@ -89,10 +89,11 @@ class CheckoutController extends Controller
             // Hapus cart
             $cart->delete();
         }
-       
 
 
-        return view('checkout.cash', compact('order', 'cartItems'));
+
+        return view('checkout.cash', compact('order', 'cartItems'))->with('success', 'Pesanan Anda berhasil diproses.');
+
     }
 
     public function confirm($order_id)

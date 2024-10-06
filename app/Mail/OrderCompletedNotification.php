@@ -10,20 +10,30 @@ class OrderCompletedNotification extends Mailable
 {
     use Queueable, SerializesModels;
 
-    protected $order;
+    public $orderItems;
 
-    public function __construct($order)
+    /**
+     * Create a new message instance.
+     *
+     * @return void
+     */
+    public function __construct($orderItems)
     {
-        $this->order = $order;
+        $this->orderItems = $orderItems;
     }
 
+    /**
+     * Build the message.
+     *
+     * @return $this
+     */
     public function build()
     {
-        return $this
-            ->subject('Order Completed')
-            ->view('emails.order_completed') // Pastikan Anda memiliki view ini
+        return $this->subject('Your Order Has Been Delivered')
+            ->view('emails.order_completed')
             ->with([
-                'order' => $this->order,
+                'orderItems' => $this->orderItems,
             ]);
     }
 }
+

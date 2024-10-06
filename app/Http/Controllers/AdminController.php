@@ -17,14 +17,15 @@ class AdminController extends Controller
     public function dashboard()
     {
         $productCount = Product::count();
-        $orderCount = Order::whereIn('status', ['paid', 'cash'])->count();
+        $orderCount = Order::whereIn('status', ['paid'])->count();
         $customerCount = User::where('role_id', 1)->count();
         $bannerCount = Banner::count();
         $categoryCount = Category::count();
         $notifications = auth()->user()->notifications;
-        $countProcessing = Order::where('status', 'processing')->count();
+        $countProcessing = Order::where('status', 'cash')->count();
+        $countCooking = Order::where('status', 'processing')->count();
 
-        return view('admin.dashboard', compact('productCount', 'orderCount', 'customerCount', 'notifications', 'bannerCount', 'categoryCount', 'countProcessing'));
+        return view('admin.dashboard', compact('productCount', 'orderCount', 'customerCount', 'notifications', 'bannerCount', 'categoryCount', 'countProcessing','countCooking'));
     }
     public function store(Request $request)
     {

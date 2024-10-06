@@ -1,6 +1,20 @@
 @extends('layouts.admin.app')
 
 @section('content')
+@if (session('error'))
+    @section('scripts')
+    <script>
+        Swal.fire({
+            title: 'Error',
+            text: '{{ session('error') }}', // Ambil pesan error dari session
+            icon: 'error', // Ganti icon menjadi 'error' untuk alert tipe error
+            showCancelButton: false,
+            confirmButtonText: 'OK'
+        });
+    </script>
+    @endsection
+@endif
+
 <div class="container">
     <h1>Kelola Pesanan</h1>
      <form action="{{ route('orders.manage') }}" method="GET" class="mb-4">

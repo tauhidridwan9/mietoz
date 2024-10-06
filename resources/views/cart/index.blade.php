@@ -20,7 +20,8 @@
     @endif
 
     @if($items->count())
-    <table class="table">
+    <div class="table-responsive">
+    <table class="table table-striped">
         <thead>
             <tr>
                 <th>Produk</th>
@@ -72,5 +73,6 @@
     @else
     <p>Keranjang Anda kosong.</p>
     @endif
+    </div>
 </div>
 @endsection
