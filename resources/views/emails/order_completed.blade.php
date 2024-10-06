@@ -89,16 +89,17 @@
     <div class="email-container">
         <h1>Order Completed</h1>
 
-        <p>Your order has been successfully completed. Here are the details:</p>
+        <p>Orderan kamu sudah siap diambil. Berikut adalah detail order anda:</p>
 
         <ul>
             @foreach($orderItems as $item)
+            <li><span>Order Id :</span>{{$item->order_id}}</li>
                 <li><span>Product:</span> {{ $item->product_name }}</li>
             @endforeach
         </ul>
 
         <div class="thank-you">
-            <p>Thank you for shopping with us!</p>
+            <p>Tunjukan Order Id pada kasir untuk menambil pesanan.</p>
         </div>
 
         <div class="button-container">

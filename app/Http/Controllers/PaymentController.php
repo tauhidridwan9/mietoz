@@ -50,10 +50,6 @@ class PaymentController extends Controller
         $order->status = 'paid';
         $order->save();
     
-
-        $order->save();
-
-
         // Return response
 
         return response()->json([
@@ -73,7 +69,7 @@ class PaymentController extends Controller
         ]);
 
         // Temukan order berdasarkan ID
-        $order = Order::with('orderItems')->findOrFail($request->input('order_id'));
+        $order = Order::findOrFail($request->input('order_id'));
 
         // Konversi total_amount ke float
         $grossAmount = (float) $order->total_amount;
@@ -83,21 +79,6 @@ class PaymentController extends Controller
             'order_id' => $order->id,
             'gross_amount' => $grossAmount,
         ]);
-
-        // Persiapkan item_details
-        $itemDetails = [];
-
-        foreach ($order->orderItems as $item) {
-            $itemDetails[] = [
-                'id' => $item->id, // Atau gunakan $item->product_id jika ID produk yang diinginkan
-                'price' => $item->price,
-                'quantity' => $item->quantity,
-                'name' => $item->product_name, // Misalkan ada kolom ini di OrderItem 
-                'category' => $item->product->category ?? '', // Ambil kategori dari relasi Product
-                'merchant_name' => 'Mietoz', // Sesuaikan dengan nama merchant Anda
-                'url' => 'https://mietoz.my.id' // Ganti dengan URL produk yang sesuai
-            ];
-        }
 
         // Setup Midtrans Snap
         try {
@@ -110,10 +91,8 @@ class PaymentController extends Controller
                     'first_name' => auth()->user()->name,
                     'email' => auth()->user()->email,
                 ],
-                'item_details' => $itemDetails // Gunakan array itemDetails yang sudah dibuat
             ]);
 
-            
 
             return response()->json(['snapToken' => $snapToken->token]);
         } catch (\Exception $e) {
@@ -127,13 +106,6 @@ class PaymentController extends Controller
         $orderId = $request->input('order_id');
         $order = Order::findOrFail($orderId);
 
-        // Ambil transaction_id dari request
-        // Sesuaikan dengan nama parameter yang dikirim oleh Midtrans
-
-        // Simpan transaction_id ke dalam kolom orders
-       
-
-    
         $order->status = 'paid';
         $order->save();
 
@@ -153,16 +125,16 @@ class PaymentController extends Controller
 
                 if ($product) {
                     // Buat item order berdasarkan item keranjang
-                    OrderItem::create([
-                        'order_id' => $order->id,
-                        'product_id' => $product->id,
-                        'product_name' => $product->name,
-                        'quantity' => $cartItem->quantity,
-                        'price' => $cartItem->price
-                    ]);
+                    // OrderItem::create([
+                    //     'order_id' => $order->id,
+                    //     'product_id' => $product->id,
+                    //     'product_name' => $product->name, // Atau gunakan $cartItem['name'] jika ada dalam item
+                    //     'quantity' => $cartItem->quantity,
+                    //     'price' => $cartItem->price
+                    // ]);
 
                     // Kurangi stok produk sesuai dengan jumlah yang diorder
-                    // $product->decrement('stock', $cartItem->quantity);
+                    $product->decrement('stock', $cartItem->quantity);
 
                     // Jika stok habis, beri notifikasi kepada admin
                     if ($product->stock <= 0) {
@@ -184,6 +156,7 @@ class PaymentController extends Controller
 
         return redirect()->route('order.success');
     }
+
 
     public function handleCallback(Request $request)
     {

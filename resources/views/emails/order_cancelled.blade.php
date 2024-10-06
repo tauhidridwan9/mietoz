@@ -66,18 +66,18 @@
         <h1>Order Cancelled</h1>
     </div>
     <div class="content">
-        <p>Dear {{ $order->user->name }},</p>
+        <p>Hai {{ $order->user->name }},</p>
 
-        <p>We regret to inform you that your order with ID <strong>{{ $order->id }}</strong> has been cancelled.</p>
+        <p>Kami informasikan kepada anda bahwa order ID <strong>{{ $order->id }}</strong> dibatalkan.</p>
 
-        <p>The following item(s) are out of stock:</p>
+        <p>Hal itu dikarenakan stok barang yang kamu pesan habis:</p>
         <ul>
-            <li>{{ $productName }} (Quantity: {{ $quantity }})</li>
+            <li>{{ $productName }} (Kuantitas: {{ $quantity }})</li>
         </ul>
 
-        <p>The total amount for this order was <strong>Rp. {{ number_format($totalAmount, 2) }}</strong>.</p>
+        <p>Total:  <strong>Rp. {{ number_format($totalAmount, 2) }}</strong>.</p>
 
-        <p>We apologize for any inconvenience this may cause. Please feel free to reach out if you have any questions or would like assistance with another order.</p>
+        <p>Kami memohon maaf atas ketidaknyamanannya.</p>
 
         <a href="{{ route('order.success') }}" class="button">View Your Orders</a>
     </div>
