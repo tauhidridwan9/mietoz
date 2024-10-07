@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BannerController;
+use App\Http\Controllers\Auth\VerificationController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
@@ -38,12 +39,15 @@ use Illuminate\Support\Facades\Route;
 
 
 
-Auth::routes();
+
+Auth::routes(['verify' => true]);
 Route::get('/', [ProductController::class, 'index'])->name('home');
 Route::get('/banner', [BannerController::class, 'getBanner'])->name('banner.get');
 Route::get('/products', [ProductController::class, 'index'])->name('products.index');
 Route::get('/midtrans/callback', [PaymentController::class, 'handleCallback'])->name('midtrans.callback');
 Route::get('/products/{id}', [ProductController::class, 'detail'])->name('products.show');
+Route::get('/email/verify', [VerificationController::class, 'verify'])->middleware('auth')->name('verification.verify');
+Route::get('/email/verify', function () {return view('auth.verify');})->middleware('auth')->name('verification.notice');
 
 
 

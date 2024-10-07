@@ -7,7 +7,7 @@ use App\Models\User;
 use Illuminate\Foundation\Auth\RegistersUsers;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-
+use Illuminate\Http\Request;
 class RegisterController extends Controller
 {
     /*
@@ -73,8 +73,15 @@ class RegisterController extends Controller
             'alamat' => $data['alamat']
         ]);
 
-        session()->flash('registsucces', 'Registrasi berhasil! Silakan login untuk melanjutkan.');
+     
 
         return $user;
     }
+
+protected function registered(Request $request, $user)
+{
+    // Redirect ke halaman notice verifikasi
+    return redirect()->route('verification.notice');
+}
+
 }

@@ -165,7 +165,6 @@ class PaymentController extends Controller
         // Verifikasi signature key
         $serverKey = env('MIDTRANS_SERVER_KEY');
         $gross_amount = $data['gross_amount'];
-        $gross_amount = str_replace(".00", "", $gross_amount);
 
         $hash_string = $data['order_id'] . $data['status_code'] . $gross_amount . $serverKey;
         $hashedKey = hash('sha512', $hash_string);

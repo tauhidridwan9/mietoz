@@ -92,66 +92,60 @@ class OrderController extends Controller
 
 
     public function accept($id)
-    {
-        // Temukan order dengan orderItems terkait
-        $order = Order::with('orderItems.product')->findOrFail($id);
+{
+    // Temukan order dengan orderItems terkait
+    $order = Order::with('orderItems.product')->findOrFail($id);
 
-        // Cek stok produk sebelum mengubah status menjadi 'processing'
-        foreach ($order->orderItems as $item) {
-            $product = $item->product;
+    // Cek stok produk sebelum mengubah status menjadi 'processing'
+    foreach ($order->orderItems as $item) {
+        $product = $item->product;
 
-            if ($product->stock <= 0) {
-                // Jika stok produk kurang atau sama dengan 0, kirim notifikasi dan ubah status order
-                $customer = $order->user;
+        if ($product->stock <= 0) {
+            $customer = $order->user;
 
-                // Kirim email pemberitahuan
-                Mail::to($customer->email)->send(new OrderCancelledNotification($order, $item));
+            // Kirim email dan notifikasi pembatalan order
+            Mail::to($customer->email)->send(new OrderCancelledNotification($order, $item));
+            $customer->notify(new NotificationsOrderCancelledNotification(
+                $order,
+                $product->name,
+                $item->quantity,
+                $order->total_amount
+            ));
 
-                // Buat notifikasi untuk database
-                $customer->notify(new NotificationsOrderCancelledNotification(
-                    $order,
-                    $product->name,
-                    $item->quantity,
-                    $order->total_amount
-                ));
+            // Ubah status order menjadi 'rejected'
+            $order->status = 'rejected';
+            $order->save();
 
-                // Ubah status order menjadi 'rejected'
-                $order->status = 'rejected';
-                $order->save();
+            // Refund order
+            $this->refund($order->id, $order->total_amount);
 
-                // Refund order
-                $this->refund($order->id, $order->total_amount);
-
-                // Redirect kembali dengan pesan error
-                return redirect()->back()->with('error', 'Order ' . $order->id . ' for product ' . $product->name . ' has been cancelled due to insufficient stock.');
-            }
+            return redirect()->back()->with('error', 'Order ' . $order->id . ' for product ' . $product->name . ' has been cancelled due to insufficient stock.');
         }
-
-        // Jika semua stok mencukupi, lanjutkan mengubah status menjadi 'processing'
-        $request = new Request();
-        $request->merge(['status' => 'processing']);
-        $this->updateStatus($request, $order);
-
-        // Generate PDF dan simpan ke direktori storage/public/pdf
-        $pdf = PDF::loadView('orders.receipt', ['order' => $order]);
-        $pdfFileName = 'pdf/order_receipt_' . $order->id . '.pdf'; // Relative path untuk disk 'public'
-        $pdf->save(storage_path('app/public/' . $pdfFileName)); // Simpan PDF ke storage/public/pdf/
-
-        // Simpan path relatif PDF di record order
-        $order->pdf_link = $pdfFileName;
-        $order->save();
-
-        // Kirim notifikasi ke customer
-        $customer = $order->user;
-        $customer->notify(new OrderProcessingNotification($order));
-
-        // Dekrementasi stok produk untuk setiap item yang ada di order
-        foreach ($order->orderItems as $item) {
-            $item->product->decrement('stock', $item->quantity);
-        }
-
-        return redirect()->back()->with('success', 'Order confirmed.');
     }
+
+    // Semua stok mencukupi, ubah status menjadi 'processing'
+    $order->status = 'processing';
+    $order->save();
+
+    // Generate PDF dan simpan ke storage
+    $pdf = PDF::loadView('orders.receipt', ['order' => $order]);
+    $pdfFileName = 'pdf/order_receipt_' . $order->id . '.pdf';
+    $pdf->save(storage_path('app/public/' . $pdfFileName));
+    $order->pdf_link = $pdfFileName;
+    $order->save();
+
+    // Kirim notifikasi ke customer
+    $customer = $order->user;
+    $customer->notify(new OrderProcessingNotification($order));
+
+    // Dekrementasi stok produk untuk setiap item yang ada di order
+    foreach ($order->orderItems as $item) {
+        $item->product->decrement('stock', $item->quantity);
+    }
+
+    return redirect()->back()->with('success', 'Order confirmed.');
+}
+
 
 
     private function refund($id, $amount)
