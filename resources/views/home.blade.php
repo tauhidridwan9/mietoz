@@ -2,11 +2,11 @@
 
 @section('content')
 <div class="container">
-    @if (session('registsucces'))
+    @if (session('status'))
     @section('scripts')
     <script>
         Swal.fire({
-            title: 'Selamat Datang',
+            title: 'Verifikasi Email Berhasil',
             text: 'Silahkan mulai pengalaman belanja yang menarik',
             icon: 'success',
             showCancelButton: false,

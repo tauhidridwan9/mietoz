@@ -87,6 +87,7 @@
 
 <body>
     <div class="email-container">
+<<<<<<< HEAD
         <h1>Order Completed</h1>
 
         <p>Orderan kamu sudah siap diambil. Berikut adalah detail order anda:</p>
@@ -101,6 +102,12 @@
         <div class="thank-you">
             <p>Tunjukan Order Id pada kasir untuk menambil pesanan.</p>
         </div>
+=======
+        <h1>Terimakasih</h1>
+
+        <p>Terimakasih telah berbelanja di Mietoz.</p>
+
+>>>>>>> 1edaa399096f5f4e46a96e678e12c725e175237d
 
         <div class="button-container">
             <a href="{{ route('products.index') }}">Continue Shopping</a>

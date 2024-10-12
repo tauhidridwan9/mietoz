@@ -77,14 +77,18 @@ class ProductController extends Controller
             'message' => $products->isEmpty() ? 'Tidak ada produk yang ditemukan sesuai pencarian Anda.' : null,
         ];
 
-        // Return the appropriate view based on user role
         if (Auth::check()) {
-            if (Auth::user()->hasRole('owner')) {
-                return view('products.index', $viewData);
-            } elseif (Auth::user()->hasRole('customer')) {
-                return view('home', $viewData);
-            }
+    if (Auth::user()->hasVerifiedEmail()) {
+        if (Auth::user()->hasRole('owner')) {
+            return view('products.index', $viewData);
+        } elseif (Auth::user()->hasRole('customer')) {
+            return view('home', $viewData);
         }
+    } else {
+        // Jika email belum terverifikasi, arahkan pengguna ke halaman notifikasi verifikasi
+        return redirect()->route('verification.notice');
+    }
+}
 
         // Jika pengguna belum login
         return view('home', $viewData);

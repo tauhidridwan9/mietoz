@@ -29,7 +29,7 @@ class OrderCompletedNotification extends Mailable
      */
     public function build()
     {
-        return $this->subject('Your Order Has Been Delivered')
+        return $this->subject('Orderan Anda Siap Diambil')
             ->view('emails.order_completed')
             ->with([
                 'orderItems' => $this->orderItems,

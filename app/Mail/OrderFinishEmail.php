@@ -61,7 +61,11 @@ class OrderFinishEmail extends Mailable
     public function build()
     {
         return $this->subject('Your Order Has Been Delivered')
+<<<<<<< HEAD
         ->view('emails.order_finish')
+=======
+        ->view('emails.order_completed')
+>>>>>>> 1edaa399096f5f4e46a96e678e12c725e175237d
         ->with([
             'orderItems' => $this->orderItems,
         ]);
@@ -69,3 +73,7 @@ class OrderFinishEmail extends Mailable
 }
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 1edaa399096f5f4e46a96e678e12c725e175237d

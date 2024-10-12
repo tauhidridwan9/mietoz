@@ -103,6 +103,19 @@
             </div>
         </div>
 
+<div class="col-md-4 mb-3">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title">Siap Diambil</h5>
+                </div>
+                <div class="card-body text-center">
+                    <p class="card- fs-2">{{ $countDiambil }} Siap Diambil</p>
+                    <i class="fas fa-shopping-cart fa-2x"></i>
+                    <a href="{{ route('orders.manage.diambil') }}" class="btn btn-primary mt-2">Kelola Pesanan</a>
+                </div>
+            </div>
+        </div>
+
         <div class="col-md-4 mb-3">
             <div class="card shadow">
                 <div class="card-header bg-success text-white">

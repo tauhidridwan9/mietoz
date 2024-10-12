@@ -13,7 +13,7 @@ class OwnerController extends Controller
 {
     public function dashboard()
     {
-        $totalIncome = Order::where('status', 'delivered')->sum('total_amount'); // Asumsi total_amount ada di tabel orders
+        $totalIncome = Order::where('status', 'completed')->sum('total_amount'); // Asumsi total_amount ada di tabel orders
         $totalAdmins = User::where('role_id', 2)->count();
         $totalUsers = User::where('role_id', 1)->count();
 
@@ -28,7 +28,7 @@ class OwnerController extends Controller
         // Ambil data laporan pendapatan dengan orderItems dan relasi product
         $reportItems = OrderItem::select('product_name', DB::raw('SUM(quantity) as total_quantity'), DB::raw('SUM(quantity * price) as total_revenue'))
         ->join('orders', 'order_items.order_id', '=', 'orders.id')
-        ->where('orders.status', 'delivered')  // Hanya hitung order dengan status 'delivered'
+        ->where('orders.status', 'completed')  // Hanya hitung order dengan status 'delivered'
         ->groupBy('product_name')
         ->get();
 
