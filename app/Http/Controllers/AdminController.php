@@ -24,8 +24,8 @@ class AdminController extends Controller
         $notifications = auth()->user()->notifications;
         $countProcessing = Order::where('status', 'cash')->count();
         $countCooking = Order::where('status', 'processing')->count();
-
-        return view('admin.dashboard', compact('productCount', 'orderCount', 'customerCount', 'notifications', 'bannerCount', 'categoryCount', 'countProcessing','countCooking'));
+	 $countDiambil = Order::where('status', 'delivered')->count();
+        return view('admin.dashboard', compact('productCount', 'orderCount','countDiambil', 'customerCount', 'notifications', 'bannerCount', 'categoryCount', 'countProcessing','countCooking'));
     }
     public function store(Request $request)
     {

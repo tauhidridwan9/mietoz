@@ -35,7 +35,7 @@
         <button type="submit" class="btn btn-primary">Input</button>
     @endif
     @if (session('success'))
-        <a href="{{ route('orders.manage.cooking') }}" class="btn btn-secondary">Kembali</a>
+        <a href="{{ route('orders.manage.diambil') }}" class="btn btn-secondary">Kembali</a>
     @endif
 </div>
          

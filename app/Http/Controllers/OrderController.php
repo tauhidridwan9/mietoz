@@ -1,7 +1,8 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use App\Notifications\OrderFinish;
+use App\Mail\OrderFinishEmail;
 use App\Mail\OrderCancelledNotification;
 use App\Mail\OrderCompletedNotification;
 use App\Models\Order;
@@ -67,10 +68,7 @@ class OrderController extends Controller
         $order = Order::findOrFail($id);
 
         // Periksa apakah order memiliki resi pada tabel resi
-        if ($order->resi) {
-            // Kirim response untuk menampilkan alert menggunakan Swal.fire
-            return view('orders.cash-payment', compact('order'));
-        } else {
+   
             // Ubah status menjadi 'delivered'
             $order->status = 'delivered';
             $order->save();
@@ -87,6 +85,33 @@ class OrderController extends Controller
 
             // Redirect kembali ke halaman kelola pesanan dengan pesan status
             return redirect()->route('orders.manage.cooking')->with('status', 'Pesanan telah dikirim dan email pemberitahuan dikirim ke customer!');
+        
+    }
+
+public function markAsDiambil($id)
+    {
+        $order = Order::findOrFail($id);
+
+        // Periksa apakah order memiliki resi pada tabel resi
+		if ($order->resi) {
+            // Kirim response untuk menampilkan alert menggunakan Swal.fire
+            return view('orders.cash-payment', compact('order'));
+        } else {
+            // Ubah status menjadi 'delivered'
+            $order->status = 'completed';
+            $order->save();
+
+            // Ambil items dari order jika ada relasi ke order_items
+            $orderItems = $order->orderItems; // Pastikan ada relasi yang benar antara Order dan Item
+
+            // Kirim notifikasi ke customer
+            $customer = $order->user; // Pastikan ada relasi ke model User di Order
+            $customer->notify(new OrderFinish($order));
+
+           
+
+            // Redirect kembali ke halaman kelola pesanan dengan pesan status
+            return redirect()->route('orders.manage.diambil')->with('status', 'Pesanan telah dikirim dan email pemberitahuan dikirim ke customer!');
         }
     }
 
@@ -146,6 +171,23 @@ class OrderController extends Controller
     return redirect()->back()->with('success', 'Order confirmed.');
 }
 
+ public function manageDiambil(Request $request)
+    {
+        $search = $request->input('search');
+
+        $orders = Order::with('user', 'orderItems')
+        ->whereIn('status', ['delivered']) // Filter berdasarkan status 'processing'
+        ->when($search, function ($query, $search) {
+            // Pencarian berdasarkan nama user atau ID pesanan
+            return $query->whereHas('user', function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%'); // Pencarian nama user
+            })->orWhere('id', $search); // Pencarian berdasarkan ID pesanan
+        })
+            ->orderBy('updated_at', 'asc') // Urutkan berdasarkan waktu update terakhir
+            ->get();
+
+        return view('orders.diambil', compact('orders'));
+    }
 
 
     private function refund($id, $amount)
@@ -441,7 +483,7 @@ class OrderController extends Controller
             }
 
             // Ubah status order menjadi 'delivered'
-            $order->status = 'delivered';
+            $order->status = 'completed';
             $order->save();
 
             // Flash pesan sukses
