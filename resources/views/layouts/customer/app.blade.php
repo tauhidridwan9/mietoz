@@ -14,6 +14,46 @@
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+   
+     <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+
+<script>
+    // Inisialisasi Pusher
+    Pusher.logToConsole = true;
+
+    // Cek jika pengguna terautentikasi
+    var userId = '{{ auth()->check() ? auth()->user()->id : "null" }}'; // Mendapatkan ID pengguna jika terautentikasi
+
+    if (userId !== "null") {
+        const pusher = new Pusher('{{ env('PUSHER_APP_KEY') }}', {
+            cluster: '{{ env('PUSHER_APP_CLUSTER') }}'
+        });
+
+        // Gantilah 'customer_id' dengan ID yang sesuai
+        const channel = pusher.subscribe('chat.' + userId); // Pastikan Anda menggunakan ID pengguna yang sesuai
+
+        // Tangkap event
+        channel.bind('MessageEvent', function(data) {
+            console.log(data); // Untuk melihat struktur data di konsol
+
+            // Tangkap pesan dari data
+            var chatId = data.data.chat_id; // Menangkap chat_id
+            var message = data.data.message; // Menangkap message
+            var customerId = data.data.customer_id; // Menangkap customer_id
+
+            // Tampilkan notifikasi dengan SweetAlert atau Toastr
+            alert('Pesan Baru: ' + message); // Ganti dengan cara menampilkan yang lebih baik
+
+            // Jika Anda ingin memperbarui tampilan chat, lakukan di sini
+            // updateChatView(data); // Contoh fungsi untuk memperbarui tampilan chat
+        });
+    } else {
+        console.warn('Pengguna tidak terautentikasi. Tidak dapat mendengarkan channel chat.');
+        // Anda dapat menampilkan pesan atau melakukan penanganan lain di sini
+    }
+</script>
+
 
     <!-- Scripts -->
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
@@ -75,16 +115,22 @@
 
                         <!-- Bell Icon for Notifications (Displayed Only for Authenticated Users) -->
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ route('notifications.index') }}" role="button">
-                                <i class="fas fa-bell"></i>
-                                <!-- Badge for Unread Notifications -->
-                                @php
-                                $unreadNotifications = Auth::user()->unreadNotifications->count();
-                                @endphp
-                                @if ($unreadNotifications > 0)
+                           <a class="nav-link" href="{{ route('notifications.index') }}" role="button">
+                            <i class="fas fa-bell"></i>
+                            <!-- Badge for Unread Notifications -->
+                            @php
+                                // Menghitung notifikasi yang belum dibaca kecuali tipe ChatNotification
+                                $unreadNotifications = Auth::user()->unreadNotifications
+                                    ->reject(function($notification) {
+                                        return $notification->type === 'App\Notifications\ChatNotification';
+                                    })
+                                    ->count();
+                            @endphp
+                            @if ($unreadNotifications > 0)
                                 <span class="badge bg-warning">{{ $unreadNotifications }}</span>
-                                @endif
-                            </a>
+                            @endif
+                        </a>
+
                         </li>
                         <li class="nav-item dropdown">
                             <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
@@ -99,7 +145,7 @@
                                 <a class="dropdown-item" href="{{ route('profile.edit') }}">
                                     Edit Profile
                                 </a>
-                                <a class="dropdown-item" href="{{ route('chat.index') }}" class="btn btn-primary">Go to Chat Room</a>
+                                {{-- <a class="dropdown-item" href="{{ route('chat.index') }}" class="btn btn-primary">Go to Chat Room</a> --}}
 
 
                                 <a class="dropdown-item" href="{{ route('logout') }}"
@@ -113,6 +159,7 @@
                                 </form>
                             </div>
                         </li>
+                        
 
                         @endguest
                     </ul>
@@ -273,7 +320,49 @@
         width: 100%;
     }
 
+    .chat-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #28a745;
+            color: white;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            z-index: 1000; /* Make sure it's on top */
+        }
+
+        /* Badge for new messages */
+        .chat-button .badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background-color: #ffc107;
+            color: black;
+            border-radius: 50%;
+            padding: 5px 10px;
+        }
+
             </style>
+
+             @auth
+             <div class="chat-button" onclick="window.location.href='{{ route('chat.index') }}'">
+        <i class="fas fa-comments"></i>
+      
+    @php
+        $newMessages = Auth::user()->unreadNotifications->where('type', 'App\Notifications\ChatNotification')->count();
+    @endphp
+    @if ($newMessages > 0)
+        <span class="badge">{{ $newMessages }}</span>
+    @endif
+@endauth
+
+    </div>
             @yield('content')
             <!-- Scripts -->
             <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

@@ -15,6 +15,26 @@
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+     
+<script>
+    Pusher.logToConsole = true;
+
+    const pusher = new Pusher('{{ env('PUSHER_APP_KEY') }}', {
+        cluster: '{{ env('PUSHER_APP_CLUSTER') }}'
+    });
+
+    const channel = pusher.subscribe('dashboard');
+    channel.bind('OrderUpdated', function(data) {
+        // Update your dashboard with the new data
+        document.querySelector('.order-count').innerText = data.data.orderCount + ' pesanan';
+        document.querySelector('.count-processing').innerText = data.data.countProcessing + ' pesanan';
+        document.querySelector('.count-cooking').innerText = data.data.countCooking + ' pesanan sedang dimasak';
+        document.querySelector('.count-diambil').innerText = data.data.countDiambil + ' Siap Diambil';
+        document.querySelector('.customer-count').innerText = data.data.customerCount + ' customer';
+    });
+</script>
 
     <!-- Scripts -->
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
@@ -91,6 +111,18 @@
 
         <main class="py-4 mt-5">
             <style>
+
+                .unread-badge {
+    background-color: #ffc107; /* Warna kuning */
+    color: white;
+    font-size: 0.8em;
+    padding: 5px 10px;
+    border-radius: 50%;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
                 
 
                 /* Container utama */
@@ -279,13 +311,57 @@
                     color: #888;
                     font-size: 16px;
                 }
+
+                 .chat-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #28a745;
+            color: white;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            z-index: 1000; /* Make sure it's on top */
+        }
+
+        /* Badge for new messages */
+        .chat-button .badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background-color: #ffc107;
+            color: black;
+            border-radius: 50%;
+            padding: 5px 10px;
+        }
             </style>
+             @auth
+             <div class="chat-button" onclick="window.location.href='{{ route('admin.chat.index') }}'">
+        <i class="fas fa-comments"></i>
+      
+    @php
+        // Menghitung total chat yang belum dibaca (is_read = false)
+        $totalUnreadChats = \App\Models\Chat::where('is_read', false)->count();
+    @endphp
+
+    <!-- Jika ada chat belum dibaca, tampilkan badge -->
+    @if ($totalUnreadChats > 0)
+        <span class="badge">{{ $totalUnreadChats }}</span>
+    @endif
+@endauth
+ </div>
 
             @yield('content')
             <!-- Scripts -->
-<script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+
             <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
             <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+           
             @yield('scripts')
             
 

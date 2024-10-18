@@ -13,7 +13,8 @@
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.css">
 
     <!-- Scripts -->
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
@@ -112,7 +113,55 @@
 
         <!-- Scripts -->
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+        <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.js"></script>
+
         @yield('scripts')
+        
+        <script>
+        $(document).ready(function() {
+    // Inisialisasi tabel
+    var reportTable = $('#reportTable').DataTable();
+    var custTable = $('#custTable').DataTable(); // Jika ada tabel lain
+
+    // Fungsi filter rentang waktu untuk reportTable
+    $.fn.dataTable.ext.search.push(
+        function(settings, data, dataIndex) {
+            if (settings.nTable.id !== 'reportTable') {
+                return true; // Biarkan tabel lain tidak terpengaruh
+            }
+
+            var min = $('#start-date').val();
+            var max = $('#end-date').val();
+            var date = data[2]; // Kolom tanggal (Index ke-2 sesuai dengan table header)
+
+            // Konversi string date ke objek Date
+            var dateObj = new Date(date);
+
+            // Debugging untuk memastikan tanggal yang diambil
+            console.log('Date from table:', date, 'Parsed Date:', dateObj);
+
+            if (
+                (min === "" && max === "") || // Jika tidak ada input, tampilkan semua
+                (min === "" && dateObj <= new Date(max)) || // Jika hanya end-date
+                (max === "" && dateObj >= new Date(min)) || // Jika hanya start-date
+                (dateObj >= new Date(min) && dateObj <= new Date(max)) // Jika kedua tanggal diinput
+            ) {
+                return true;
+            }
+            return false;
+        }
+    );
+
+    // Event listener untuk input tanggal pada reportTable
+    $('#start-date, #end-date').change(function() {
+        // Debugging untuk melihat nilai min dan max
+        console.log('Start Date:', $('#start-date').val(), 'End Date:', $('#end-date').val());
+        reportTable.draw(); // Hanya menggambar reportTable
+    });
+});
+
+        </script>
     </div>
 </body>
 

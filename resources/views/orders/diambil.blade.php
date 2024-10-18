@@ -20,11 +20,7 @@
      
 <div class="container">
     <h1>Kelola Pesanan</h1>
-<<<<<<< HEAD
-     <form action="{{ route('orders.manage.cooking') }}" method="GET" class="mb-4">
-=======
      <form action="{{ route('orders.manage.diambil') }}" method="GET" class="mb-4">
->>>>>>> 1edaa399096f5f4e46a96e678e12c725e175237d
         <div class="input-group">
             <input type="text" name="search" class="form-control" placeholder="Cari pesanan berdasarkan nama atau ID..." value="{{ request('search') }}">
             <div class="input-group-append">

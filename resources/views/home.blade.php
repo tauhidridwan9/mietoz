@@ -13,6 +13,7 @@
             confirmButtonText: 'OK'
         });
     </script>
+
     @endsection
     @endif
 

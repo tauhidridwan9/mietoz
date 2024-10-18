@@ -4,36 +4,38 @@
 <div class="container" id="chat">
     <div class="row chat-container">
         <!-- Sidebar Kontak -->
-        <div class="col-md-4 chat-sidebar">
-            <div class="chat-sidebar-header">
-                <h4>Contacts</h4>
-            </div>
-            <ul class="chat-contact-list">
-                @foreach ($contacts->sortByDesc(function($contact) {
-                return $contact->chats()->latest()->first()->id;
-                }) as $contact)
-                <li class="chat-contact-item {{ $selectedUser && $contact->id == $selectedUser->id ? 'active' : '' }}">
-                    <a href="{{ route('admin.chat', ['user_id' => $contact->id]) }}">
-                        <div class="contact-avatar">
-                            <!-- Display the avatar of the user who owns the chat -->
-                            @if($contact->profile_pictures)
-                            <img src="{{ asset('storage/' . $contact->profile_pictures) }}" alt="{{ $contact->name }}" />
-                            @else
-                            <div class="avatar-placeholder">
-                                <img src="{{asset('storage/avatar/avatar.jpeg')}}" alt="avatar">
-                            </div>
-                            @endif
-                        </div>
-                        <div class="contact-info">
-                            <h5 class="contact-name ">{{ $contact->name }}</h5>
-                            <!-- Display the preview of the last message -->
-                            <p class="contact-preview">{{ optional($contact->chats()->latest()->first())->message ?? 'No messages' }}</p>
-                        </div>
-                    </a>
-                </li>
-                @endforeach
-            </ul>
-        </div>
+       <div class="col-md-4 chat-sidebar">
+    <div class="chat-sidebar-header">
+        <h4>Contacts</h4>
+    </div>
+    <ul class="chat-contact-list">
+        @foreach ($contacts->sortByDesc(function($contact) {
+            return $contact->chats()->latest()->first()->id;
+        }) as $contact)
+        <li class="chat-contact-item {{ $selectedUser && $contact->id == $selectedUser->id ? 'active' : '' }}">
+            <a href="{{ route('admin.chat', ['user_id' => $contact->id]) }}">
+                <div class="contact-avatar">
+                    @if($contact->profile_pictures)
+                    <img src="{{ asset('storage/' . $contact->profile_pictures) }}" alt="{{ $contact->name }}" />
+                    @else
+                    <div class="avatar-placeholder">
+                        <img src="{{asset('storage/avatar/avatar.jpeg')}}" alt="avatar">
+                    </div>
+                    @endif
+                </div>
+                <div class="contact-info">
+                    <h5 class="contact-name">{{ $contact->name }}</h5>
+                    <p class="contact-preview">{{ optional($contact->chats()->latest()->first())->message ?? 'No messages' }}</p>
+                </div>
+                @if ($contact->unreadCount > 0)
+                    <span class="badge bg-warning text-dark">{{ $contact->unreadCount }}</span>
+                @endif
+            </a>
+        </li>
+        @endforeach
+    </ul>
+</div>
+
 
         <!-- Wadah Percakapan -->
         <div class="col-md-8 chat-conversation">

@@ -82,11 +82,15 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/orders/{id}/payment', [OrderController::class, 'manageProcess'])->name('orders.payment');
 
     Route::get('/orders/pdf/{id}', [OrderController::class, 'viewPdf'])->name('orders.pdf');
+    Route::get('/orders/resi/{id}', [OrderController::class, 'viewResi'])->name('orders.resi');
     // Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     Route::get('/admin/chat', [ChatController::class, 'adminIndex'])->name('admin.chat.index');
     Route::post('/admin/chat/{chatId}/reply', [ChatController::class, 'adminReply'])->name('admin.chat.reply');
     Route::get('/admin/chat/{user_id}', [ChatController::class, 'show'])->name('admin.chat');
     Route::post('admin/cash/payment/{orders}', [OrderController::class, 'calculator'])->name('cash.payment.process');
+    Route::get('orders/create', [OrderController::class, 'create'])->name('orders.create');
+    Route::post('orders/store', [OrderController::class, 'storeAdmin'])->name('orders.storeAdmin');
+
 
 
    
@@ -163,7 +167,7 @@ Route::group(['middleware' => 'auth'], function () {
     Route::post('/chat/send', [ChatController::class, 'sendMessage'])->name('chat.send');
     Route::get('/chat/messages', [ChatController::class, 'fetchMessages'])->name('chat.fetch');
     Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
-    Route::post('/chat', [ChatController::class, 'store'])->name('chat.store');
+    Route::post('/chat/store', [ChatController::class, 'store'])->name('chat.store');
     Route::get('cash/payment/{order_id}', [CheckoutController::class, 'cash'])->name('cash.payment');
     Route::post('cash/payment/confirm/{order_id}',[CheckoutController::class, 'confirm'])->name('cash.payment.confirm');
     Route::get('cash/payment/pdf/{order_id}', [CheckoutController::class, 'pdf'])->name('cash.payment.pdf');

@@ -30,8 +30,8 @@
     </table>
 
     <div class="container d-flex align-items-center justify-content-center p-2">
-        <button id="pay-button" class="btn btn-primary">Pay Via Online</button>
-        <a class="btn btn-warning text-decoration-none rounded-2 text-light btn-primary p-2" href="{{ route('cash.payment', $order->id) }}">Bayar Tunai</a>
+        <button id="pay-button" class="btn btn-primary">Pay</button>
+        {{-- <a class="btn btn-warning text-decoration-none rounded-2 text-light btn-primary p-2" href="{{ route('cash.payment', $order->id) }}">Bayar Tunai</a> --}}
     </div>
     @endif
 
@@ -42,10 +42,9 @@
     @section('scripts')
     <!-- Include Midtrans Snap.js -->
     <script type="text/javascript"
-        src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ env('MIDTRANS_CLIENT_KEY') }}"></script>
+        src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ config('services.midtrans.client_key') }}"></script>
     <script>
-        document.getElementById('pay-button').addEventListener('click', function() {
-            fetch('{{ route('payment.pay') }}', {method: 'POST',
+        document.getElementById('pay-button').addEventListener('click', function() {fetch('{{ route('payment.pay') }}', {method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'

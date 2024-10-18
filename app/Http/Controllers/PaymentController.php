@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\MessageSent;
+use App\Events\OrderUpdated;
 use Illuminate\Support\Facades\Mail;
 use Midtrans\Config;
 use Illuminate\Http\Request;
@@ -19,13 +21,7 @@ use App\Models\User;
 use App\Notifications\NewOrderNotification;
 use App\Notifications\StockDepletedNotification;
 use Illuminate\Support\Facades\DB;
-
-
-
-
-
-
-
+use Symfony\Component\Mailer\Event\MessageEvent;
 
 class PaymentController extends Controller
 {
@@ -145,8 +141,19 @@ class PaymentController extends Controller
                     // Notify admin about the new order
                     $admin = User::where('role_id', 2)->first(); // Fetch admin
                     $admin->notify(new NewOrderNotification($order));
+                    Log::info("Notifikasi pesanan baru terkirim untuk order ID: " . $order->id);
+
+                    // event(new MessageSent($order));
                 }
             }
+            event(new OrderUpdated([
+                'customerCount' => User::where('role_id', 1)->count(),
+                'orderCount' => Order::where('status', 'paid')->count(),
+                'countProcessing' => Order::where('status', 'cash')->count(),
+                'countCooking' => Order::where('status', 'processing')->count(),
+                'countDiambil' => Order::where('status', 'delivered')->count(),
+            ]));
+
 
             // Hapus item keranjang setelah order diproses
             $cartItems->each->delete();

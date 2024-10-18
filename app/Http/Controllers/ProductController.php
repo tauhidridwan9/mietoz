@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\OrderUpdated;
 use App\Models\Category;
+use App\Models\Order;
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -130,6 +133,13 @@ class ProductController extends Controller
         }
 
         $product->save();
+        event(new OrderUpdated([
+            'customerCount' => User::where('role_id', 1)->count(),
+            'orderCount' => Order::where('status', 'paid')->count(),
+            'countProcessing' => Order::where('status', 'cash')->count(),
+            'countCooking' => Order::where('status', 'processing')->count(),
+            'countDiambil' => Order::where('status', 'delivered')->count(),
+        ]));
 
         return redirect()->route('products.index')->with('success', 'Produk berhasil ditambahkan!');
     }

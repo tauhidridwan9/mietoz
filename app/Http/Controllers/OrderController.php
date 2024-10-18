@@ -1,11 +1,15 @@
 <?php
 
 namespace App\Http\Controllers;
+
+use App\Events\OrderUpdated;
 use App\Notifications\OrderFinish;
 use App\Mail\OrderFinishEmail;
+use Illuminate\Support\Str;
 use App\Mail\OrderCancelledNotification;
 use App\Mail\OrderCompletedNotification;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\User;
 use App\Notifications\OrderCancelledNotification as NotificationsOrderCancelledNotification;
@@ -48,6 +52,22 @@ class OrderController extends Controller
     // Kembalikan view dengan path PDF yang dikirim ke view
     return view('pdf-viewer', compact('pdfPath'));
 }
+    public function viewResi($id)
+    {
+        // Temukan order berdasarkan ID
+        $order = Order::findOrFail($id);
+
+        // Dapatkan link PDF yang disimpan (diasumsikan disimpan sebagai path relatif di kolom 'pdf_link')
+        $pdfPath = asset('storage/' . $order->resi);
+
+        // Cek apakah file tersebut ada di storage (untuk memastikan validasi sebelum mengirim ke view)
+        if (!file_exists(storage_path('app/public/' . $order->resi))) {
+            abort(404, 'PDF file not found.');
+        }
+
+        // Kembalikan view dengan path PDF yang dikirim ke view
+        return view('pdf-viewer-resi', compact('pdfPath'));
+    }
 
 
 
@@ -65,38 +85,45 @@ class OrderController extends Controller
 
     public function markAsDelivered($id)
     {
+        // Find the order by ID or fail
         $order = Order::findOrFail($id);
 
-        // Periksa apakah order memiliki resi pada tabel resi
-   
-            // Ubah status menjadi 'delivered'
-            $order->status = 'delivered';
-            $order->save();
+        // Check if the order has a receipt (resi) in the 'resi' column, if necessary.
+        // Assuming you don't need a resi check, we'll proceed directly to updating the status.
 
-            // Ambil items dari order jika ada relasi ke order_items
-            $orderItems = $order->orderItems; // Pastikan ada relasi yang benar antara Order dan Item
+        // Change status to 'delivered'
+        $order->status = 'delivered';
+        $order->save();
 
-            // Kirim notifikasi ke customer
-            $customer = $order->user; // Pastikan ada relasi ke model User di Order
+        // Get the order items, ensure you have the correct relationship set up in your Order model
+        $orderItems = $order->orderItems;
+
+        // Get the customer (assuming a relationship exists between Order and User)
+        $customer = $order->user;
+
+        // Check if the customer email is not an @example.com address
+        if (!str_contains($customer->email, '@example.com')) {
+            // Send a notification to the customer
             $customer->notify(new OrderProcessingDelivered($order));
 
-            // Kirim email ke customer, sertakan $orderItems
+            // Send email to the customer, including the $orderItems
             Mail::to($customer->email)->send(new OrderCompletedNotification($orderItems));
+        }
 
-            // Redirect kembali ke halaman kelola pesanan dengan pesan status
-            return redirect()->route('orders.manage.cooking')->with('status', 'Pesanan telah dikirim dan email pemberitahuan dikirim ke customer!');
-        
+        event(new OrderUpdated([
+            'countCooking' => Order::where('status', 'delivered')->count(),
+        ]));
+
+
+        // Redirect back to the orders management page with a success message
+        return redirect()->route('orders.manage.cooking')->with('status', 'Pesanan telah dikirim dan email pemberitahuan dikirim ke customer!');
     }
+
 
 public function markAsDiambil($id)
     {
         $order = Order::findOrFail($id);
 
-        // Periksa apakah order memiliki resi pada tabel resi
-		if ($order->resi) {
-            // Kirim response untuk menampilkan alert menggunakan Swal.fire
-            return view('orders.cash-payment', compact('order'));
-        } else {
             // Ubah status menjadi 'delivered'
             $order->status = 'completed';
             $order->save();
@@ -108,11 +135,13 @@ public function markAsDiambil($id)
             $customer = $order->user; // Pastikan ada relasi ke model User di Order
             $customer->notify(new OrderFinish($order));
 
+
+
            
 
             // Redirect kembali ke halaman kelola pesanan dengan pesan status
             return redirect()->route('orders.manage.diambil')->with('status', 'Pesanan telah dikirim dan email pemberitahuan dikirim ke customer!');
-        }
+        
     }
 
 
@@ -121,32 +150,36 @@ public function markAsDiambil($id)
     // Temukan order dengan orderItems terkait
     $order = Order::with('orderItems.product')->findOrFail($id);
 
-    // Cek stok produk sebelum mengubah status menjadi 'processing'
-    foreach ($order->orderItems as $item) {
-        $product = $item->product;
+        // Cek stok produk sebelum mengubah status menjadi 'processing'
+        foreach ($order->orderItems as $item) {
+            $product = $item->product;
 
-        if ($product->stock <= 0) {
-            $customer = $order->user;
+            if ($product->stock <= 0) {
+                $customer = $order->user;
 
-            // Kirim email dan notifikasi pembatalan order
-            Mail::to($customer->email)->send(new OrderCancelledNotification($order, $item));
-            $customer->notify(new NotificationsOrderCancelledNotification(
-                $order,
-                $product->name,
-                $item->quantity,
-                $order->total_amount
-            ));
+                // Check if the customer's email is not an @example.com address
+                if (!str_contains($customer->email, '@example.com')) {
+                    // Send cancellation email and notification
+                    Mail::to($customer->email)->send(new OrderCancelledNotification($order, $item));
+                    $customer->notify(new NotificationsOrderCancelledNotification(
+                        $order,
+                        $product->name,
+                        $item->quantity,
+                        $order->total_amount
+                    ));
+                }
 
-            // Ubah status order menjadi 'rejected'
-            $order->status = 'rejected';
-            $order->save();
+                // Change the order status to 'rejected'
+                $order->status = 'rejected';
+                $order->save();
 
-            // Refund order
-            $this->refund($order->id, $order->total_amount);
+                // Refund the order
+                $this->refund($order->id, $order->total_amount);
 
-            return redirect()->back()->with('error', 'Order ' . $order->id . ' for product ' . $product->name . ' has been cancelled due to insufficient stock.');
+                // Redirect back with an error message
+                return redirect()->back()->with('error', 'Order ' . $order->id . ' for product ' . $product->name . ' has been cancelled due to insufficient stock.');
+            }
         }
-    }
 
     // Semua stok mencukupi, ubah status menjadi 'processing'
     $order->status = 'processing';
@@ -168,6 +201,14 @@ public function markAsDiambil($id)
         $item->product->decrement('stock', $item->quantity);
     }
 
+        event(new OrderUpdated([
+            'customerCount' => User::where('role_id', 1)->count(),
+            'orderCount' => Order::where('status', 'paid')->count(),
+            'countProcessing' => Order::where('status', 'cash')->count(),
+            'countCooking' => Order::where('status', 'processing')->count(),
+            'countDiambil' => Order::where('status', 'delivered')->count(),
+        ]));
+
     return redirect()->back()->with('success', 'Order confirmed.');
 }
 
@@ -185,6 +226,14 @@ public function markAsDiambil($id)
         })
             ->orderBy('updated_at', 'asc') // Urutkan berdasarkan waktu update terakhir
             ->get();
+
+        event(new OrderUpdated([
+            'customerCount' => User::where('role_id', 1)->count(),
+            'orderCount' => Order::where('status', 'paid')->count(),
+            'countProcessing' => Order::where('status', 'cash')->count(),
+            'countCooking' => Order::where('status', 'processing')->count(),
+            'countDiambil' => Order::where('status', 'delivered')->count(),
+        ]));
 
         return view('orders.diambil', compact('orders'));
     }
@@ -270,6 +319,8 @@ public function markAsDiambil($id)
         return view('orders.processing', compact('orders'));
     }
 
+    
+
     public function manageCooking(Request $request)
     {
         $search = $request->input('search');
@@ -328,8 +379,97 @@ public function markAsDiambil($id)
     public function create()
     {
         // Display the form to create a new order
-        return view('orders.create');
+
+        $products = Product::all();
+        $users = User::all();
+        return view('orders.create', compact('products', 'users'));
     }
+
+    public function storeAdmin(Request $request)
+    {
+        Log::info('Request data:', $request->all());
+
+        // Validate the request
+        $validated = $request->validate([
+            'customer_name' => 'required|string|max:255',
+            'products' => 'required|array',
+            'products.*' => 'required|exists:products,id',
+            'quantities' => 'required|array',
+            'quantities.*' => 'required|integer|min:1',
+            'total_amount' => 'required|numeric|min:0', // Validasi untuk total_amount
+        ]);
+
+        // Cari user berdasarkan nama, atau buat user baru jika belum ada
+        $user = User::firstOrCreate(
+            ['name' => $validated['customer_name']], // Kondisi pencarian (cari berdasarkan nama)
+            [ // Data yang akan diisi jika pengguna tidak ditemukan
+                'username' => $validated['customer_name'],
+                'telephone' => '1234567891011',
+                'alamat' => 'none',
+                'role_id' => 1,
+                'email' => Str::random(10) . '@example.com',
+                'password' => bcrypt('password123')
+            ]
+        );
+
+        // Get products
+        $products = Product::whereIn('id', $validated['products'])->get();
+
+        // Check stock availability
+        foreach ($validated['products'] as $index => $productId) {
+            $product = $products->where('id', $productId)->first();
+            $requestedQuantity = $validated['quantities'][$index];
+
+            if ($product->stock < $requestedQuantity) {
+                // Return error response if stock is insufficient
+                return redirect()->back()->with('error', 'Stok tidak cukup untuk produk: ' . $product->name . '. Mohon kurangi jumlah yang dipesan.');
+            }
+        }
+
+        // Create the order
+        $order = Order::create([
+            'user_id' => $user->id,  // Menggunakan ID user yang baru dibuat atau ditemukan
+            'status' => 'cash',
+            'total_amount' => $validated['total_amount']
+        ]);
+
+        // Add each product as an order item
+        foreach ($validated['products'] as $index => $productId) {
+            // Mendapatkan harga produk berdasarkan ID produk
+            $product = $products->where('id', $productId)->first();
+
+            OrderItem::create([
+                'order_id' => $order->id,
+                'product_id' => $productId,
+                'product_name' => $product->name, // Menyimpan nama produk
+                'price' => $product->price, // Menyimpan harga produk
+                'quantity' => $validated['quantities'][$index],
+            ]);
+        }
+
+        $pdf = PDF::loadView('orders.resi', compact('order'));
+
+        $pdfFileName = 'pdf/resi_' . $order->id . '.pdf'; // Relative path for 'public' disk
+        $pdf->save(storage_path('app/public/' . $pdfFileName)); // Save PDF to storage/public/pdf/
+
+        // Store the relative PDF path in the order record
+        $order->resi = $pdfFileName;
+        $order->save();
+        event(new OrderUpdated([
+            'customerCount'=> User::where('role_id', 1)->count(),
+            'orderCount' => Order::where('status', 'paid')->count(),
+            'countProcessing' => Order::where('status', 'cash')->count(),
+            'countCooking' => Order::where('status', 'processing')->count(),
+            'countDiambil' => Order::where('status', 'delivered')->count(),
+        ]));
+        Log::info('OrderUpdated event fired with customerCount:', ['customerCount' => User::count()]);
+
+
+
+        return redirect()->route('orders.manage.process')->with('success', 'Pesanan berhasil ditambahkan.');
+    }
+
+
 
     public function store(Request $request)
     {

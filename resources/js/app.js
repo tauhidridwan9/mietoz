@@ -5,9 +5,9 @@ import Pusher from 'pusher-js';
 window.Pusher = Pusher;
 
 window.Echo = new Echo({
-    broadcaster: 'pusher',
-    key: 'PUSHER_APP_KEY',
-    cluster: 'PUSHER_APP_CLUSTER',
-    encrypted: true
+  broadcaster: 'pusher',
+  key: 'da12dfa1c2928231615c',
+  cluster: 'ap1',
+  forceTLS: true
 });
 
