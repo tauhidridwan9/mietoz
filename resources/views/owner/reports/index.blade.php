@@ -5,22 +5,22 @@
         <h1>Laporan Omzet</h1>
 
         <!-- Date Filter -->
-         <div class="row mb-3">
-                    <div class="col-md-3">
-                        <label for="start-date">Start Date:</label>
-                        <input type="date" id="start-date" class="form-control">
-                    </div>
-                    <div class="col-md-3">
-                        <label for="end-date">End Date:</label>
-                        <input type="date" id="end-date" class="form-control">
-                    </div>
-                </div>
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <label for="start-date">Start Date:</label>
+                <input type="date" id="start-date" class="form-control">
+            </div>
+            <div class="col-md-3">
+                <label for="end-date">End Date:</label>
+                <input type="date" id="end-date" class="form-control">
+            </div>
+        </div>
 
         <div class="table-responsive">
             <table id="reportTable" class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Pembeli</th> 
+                        <th>Pembeli</th>
                         <th>Produk</th>
                         <th>Tanggal</th>
                         <th>Kuantitas Yang di Beli</th>
@@ -40,8 +40,10 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Tampilkan Total Omzet -->
+        <div class="mt-3">
+            <h4>Total Omzet: <span id="totalOmzet">Rp 0.00</span></h4>
+        </div>
     </div>
-
-   
-
 @endsection

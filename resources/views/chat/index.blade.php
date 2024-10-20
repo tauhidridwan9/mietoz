@@ -7,7 +7,7 @@
         <div class="chat__conversation-board__message-container {{ $chat->is_admin ? 'reversed' : '' }}">
             <div class="chat__conversation-board__message__person">
                 <div class="chat__conversation-board__message__person__avatar">
-                    <img src="{{ $chat->is_admin ? asset('storage/admin/avatar.png') : asset('storage/' . auth()->user()->profile_pictures) }}"
+                    <img src="{{ $chat->is_admin ? 'https://avatar.iran.liara.run/public' : asset('storage/' . auth()->user()->profile_pictures) }}"
                         alt="{{ $chat->is_admin ? 'Admin' : auth()->user()->name }}" />
                 </div>
                 <span class="chat__conversation-board__message__person__nickname">{{ $chat->is_admin ? 'Admin' : auth()->user()->name }}</span>

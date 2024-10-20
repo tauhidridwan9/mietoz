@@ -119,10 +119,42 @@
         @yield('scripts')
         
         <script>
-        $(document).ready(function() {
+       $(document).ready(function() {
     // Inisialisasi tabel
-    var reportTable = $('#reportTable').DataTable();
-    var custTable = $('#custTable').DataTable(); // Jika ada tabel lain
+    var reportTable = $('#reportTable').DataTable({
+        "footerCallback": function(row, data, start, end, display) {
+            var api = this.api();
+
+            // Fungsi untuk menghapus format Rupiah dan konversi ke float
+            var intVal = function(i) {
+                return typeof i === 'string' ?
+                    i.replace(/[\Rp,]/g, '') * 1 :
+                    typeof i === 'number' ? i : 0;
+            };
+
+            // Total omzet keseluruhan data (sebelum filter)
+            var totalOmzetAll = api
+                .column(4) // Kolom omzet, sesuaikan dengan index kolom
+                .data()
+                .reduce(function(a, b) {
+                    return intVal(a) + intVal(b);
+                }, 0);
+
+            // Total omzet data yang terlihat (setelah filter)
+            var totalOmzetFiltered = api
+                .column(4, { filter: 'applied' }) // Hanya data yang difilter
+                .data()
+                .reduce(function(a, b) {
+                    return intVal(a) + intVal(b);
+                }, 0);
+
+            // Update total omzet di tampilan footer
+            $('#totalOmzet').html('Rp ' + totalOmzetFiltered.toLocaleString('id-ID', { minimumFractionDigits: 2 }));
+
+            // Debugging untuk melihat total omzet keseluruhan dan yang difilter
+            console.log('Total Omzet All:', totalOmzetAll, 'Total Omzet Filtered:', totalOmzetFiltered);
+        }
+    });
 
     // Fungsi filter rentang waktu untuk reportTable
     $.fn.dataTable.ext.search.push(
@@ -157,9 +189,10 @@
     $('#start-date, #end-date').change(function() {
         // Debugging untuk melihat nilai min dan max
         console.log('Start Date:', $('#start-date').val(), 'End Date:', $('#end-date').val());
-        reportTable.draw(); // Hanya menggambar reportTable
+        reportTable.draw(); // Hanya menggambar ulang reportTable
     });
 });
+
 
         </script>
     </div>

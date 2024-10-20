@@ -47,7 +47,7 @@
                 @foreach ($currentChat as $chat)
                 <div class="chat-message {{ $chat->is_admin ? 'admin-message' : '' }}">
                     <div class="chat-message-avatar">
-                        <img src="{{ $chat->is_admin ? asset('storage/admin/avatar.png') : ($chat->user->profile_pictures ? asset('storage/' . $chat->user->profile_pictures) : asset('storage/avatar/avatar.jpeg')) }}" alt="User Avatar">
+                        <img src="{{ $chat->is_admin ? 'https://avatar.iran.liara.run/public' : ($chat->user->profile_pictures ? asset('storage/' . $chat->user->profile_pictures) : asset('storage/avatar/avatar.jpeg')) }}" alt="User Avatar">
                     </div>
                     <div class="chat-message-content">
                         <span>{{ $chat->message }}</span>
