@@ -45,7 +45,7 @@ class PaymentController extends Controller
 
         $order->status = 'paid';
         $order->save();
-    
+
         // Return response
 
         return response()->json([
@@ -139,9 +139,10 @@ class PaymentController extends Controller
                     }
 
                     // Notify admin about the new order
-                    $admin = User::where('role_id', 2)->first(); // Fetch admin
-                    $admin->notify(new NewOrderNotification($order));
-                    Log::info("Notifikasi pesanan baru terkirim untuk order ID: " . $order->id);
+                    $admins = User::where('role_id', 2)->get(); // Fetch admin
+                    foreach ($admins as $admin) {
+                        $admin->notify(new NewOrderNotification($order));
+                    }
 
                     // event(new MessageSent($order));
                 }
@@ -238,6 +239,4 @@ class PaymentController extends Controller
 
         return response()->json(['status' => 'success']);
     }
-
-
 }

@@ -9,8 +9,9 @@ use App\Models\Product;
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-
+use Illuminate\Support\Facades\Log;
 
 class AdminController extends Controller
 {
@@ -21,10 +22,11 @@ class AdminController extends Controller
         $customerCount = User::where('role_id', 1)->count();
         $bannerCount = Banner::count();
         $categoryCount = Category::count();
-        $notifications = auth()->user()->notifications;
+        $notifications = Auth::user()->notifications;
         $countProcessing = Order::where('status', 'cash')->count();
         $countCooking = Order::where('status', 'processing')->count();
 	 $countDiambil = Order::where('status', 'delivered')->count();
+        Log::info("Notifikasi pesanan baru terkirim untuk order ID: " . $notifications);
         return view('admin.dashboard', compact('productCount', 'orderCount','countDiambil', 'customerCount', 'notifications', 'bannerCount', 'categoryCount', 'countProcessing','countCooking'));
     }
     public function store(Request $request)
